@@ -1,8 +1,14 @@
 const std: type = @import("std");
 const rl: type = @import("raylib");
-const Consts: type = @import("consts.zig");
+
 const Bullets: type = @import("bullets.zig");
-const Stars: type = @import("stars.zig");
+const Consts: type = @import("consts.zig");
+const Weapons: type = @import("weapons.zig");
+
+const ShipControl: type = enum {
+    keyboard,
+    mouse,
+};
 
 const ShipDamage: type = enum {
     none,
@@ -11,12 +17,13 @@ const ShipDamage: type = enum {
     high,
 };
 
-const Ship: type = struct {
+pub const Ship: type = struct {
     position: rl.Vector2 = rl.Vector2.init(0.0, 0.0),
     velocity: rl.Vector2 = rl.Vector2.init(0.0, 0.0),
+    control: ShipControl = .mouse,
     damage: ShipDamage = .none,
     shootCooldown: f32 = 0.0,
-    bullet: Bullets.BulletType = .bullet,
+    weapon: Weapons.WeaponType = .bullet_single_front,
 
     fn update(self: *Ship, deltaTime: f32) void {
         self.position.x = std.math.clamp(
@@ -68,19 +75,19 @@ pub fn deinit() void {
 
 pub fn processInputs(deltaTime: f32) anyerror!void {
     if (rl.isKeyDown(rl.KeyboardKey.a) or rl.isKeyDown(rl.KeyboardKey.left)) {
-        ship.velocity.x = -Consts.SHIP_VELOCITY_X;
+        ship.velocity.x -= Consts.SHIP_VELOCITY_X;
     }
 
     if (rl.isKeyDown(rl.KeyboardKey.d) or rl.isKeyDown(rl.KeyboardKey.right)) {
-        ship.velocity.x = Consts.SHIP_VELOCITY_X;
+        ship.velocity.x += Consts.SHIP_VELOCITY_X;
     }
 
     if (rl.isKeyDown(rl.KeyboardKey.w) or rl.isKeyDown(rl.KeyboardKey.up)) {
-        ship.velocity.y = -Consts.SHIP_VELOCITY_Y;
+        ship.velocity.y -= Consts.SHIP_VELOCITY_Y;
     }
 
     if (rl.isKeyDown(rl.KeyboardKey.s) or rl.isKeyDown(rl.KeyboardKey.down)) {
-        ship.velocity.y = Consts.SHIP_VELOCITY_Y;
+        ship.velocity.y += Consts.SHIP_VELOCITY_Y;
     }
 
     if (ship.velocity.x != 0.0 and ship.velocity.y != 0.0) {
@@ -90,24 +97,22 @@ pub fn processInputs(deltaTime: f32) anyerror!void {
 
     if (ship.shootCooldown > 0.0) {
         ship.shootCooldown -= deltaTime;
-    } else if (rl.isMouseButtonDown(rl.MouseButton.left)) {
+    } else if ((ship.control == .keyboard and rl.isKeyDown(rl.KeyboardKey.space)) or (ship.control == .mouse and rl.isMouseButtonDown(rl.MouseButton.left))) {
         ship.shootCooldown += Consts.SHIP_SHOOT_COOLDOWN;
 
-        try Bullets.add(ship.position.x, ship.position.y, Consts.BULLET_VELOCITY_X, Consts.BULLET_VELOCITY_Y, ship.bullet, 255.0, rl.Color.yellow, true);
-        try Bullets.add(ship.position.x, ship.position.y, Consts.BULLET_VELOCITY_X, Consts.BULLET_VELOCITY_Y, ship.bullet, 270.0, rl.Color.yellow, true);
-        try Bullets.add(ship.position.x, ship.position.y, Consts.BULLET_VELOCITY_X, Consts.BULLET_VELOCITY_Y, ship.bullet, 285.0, rl.Color.yellow, true);
+        try Weapons.shoot(ship);
     }
 
     if (rl.isMouseButtonPressed(rl.MouseButton.right)) {
-        var bullet: u8 = @intFromEnum(ship.bullet);
+        var weapon: u8 = @intFromEnum(ship.weapon);
 
-        bullet += 1;
+        weapon += 1;
 
-        if (bullet == 4) {
-            bullet = 0;
+        if (weapon >= Weapons.weaponConfigs.len) {
+            weapon = 0;
         }
 
-        ship.bullet = @enumFromInt(bullet);
+        ship.weapon = @enumFromInt(weapon);
     }
 }
 

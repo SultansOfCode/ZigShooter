@@ -3,8 +3,6 @@ const rl: type = @import("raylib");
 
 const rand: std.Random = std.crypto.random;
 
-pub var STAR_DAMPING: f32 = 0.25;
-
 const Star: type = struct {
     position: rl.Vector2 = rl.Vector2.init(0.0, 0.0),
     velocity: rl.Vector2 = rl.Vector2.init(0.0, 0.0),

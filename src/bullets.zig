@@ -1,5 +1,6 @@
 const std: type = @import("std");
 const rl: type = @import("raylib");
+
 const Consts: type = @import("consts.zig");
 
 pub const BulletType: type = enum {
@@ -83,7 +84,7 @@ const Bullet: type = struct {
                 -Consts.BULLET_SIZE_HALF,
                 -Consts.BULLET_SIZE_HALF,
             ),
-            rl.Color.white,
+            self.color,
         );
         rl.gl.rlPopMatrix();
     }
