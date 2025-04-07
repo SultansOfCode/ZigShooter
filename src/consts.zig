@@ -12,3 +12,6 @@ pub const BULLET_VELOCITY_X: f32 = 1.0;
 pub const BULLET_VELOCITY_Y: f32 = 1.0;
 pub const BULLET_SIZE: f32 = 32.0;
 pub const BULLET_SIZE_HALF: f32 = BULLET_SIZE * 0.5;
+
+pub const SHIELD_SIZE: f32 = 64.0;
+pub const SHIELD_SIZE_HALF: f32 = SHIELD_SIZE * 0.5;

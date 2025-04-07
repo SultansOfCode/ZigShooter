@@ -3,6 +3,7 @@ const rl: type = @import("raylib");
 const Consts: type = @import("consts.zig");
 const Stars: type = @import("stars.zig");
 const Bullets: type = @import("bullets.zig");
+const Shields: type = @import("shields.zig");
 const Ship: type = @import("ship.zig");
 
 pub fn main() anyerror!u8 {
@@ -21,6 +22,9 @@ pub fn main() anyerror!u8 {
 
     try Bullets.init(gpa_allocator);
     defer Bullets.deinit();
+
+    try Shields.init(gpa_allocator);
+    defer Shields.deinit();
 
     try Ship.init(gpa_allocator);
     defer Ship.deinit();

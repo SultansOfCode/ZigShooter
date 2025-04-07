@@ -3,6 +3,7 @@ const rl: type = @import("raylib");
 
 const Bullets: type = @import("bullets.zig");
 const Consts: type = @import("consts.zig");
+const Shields: type = @import("shields.zig");
 const Weapons: type = @import("weapons.zig");
 
 const ShipControl: type = enum {
@@ -23,6 +24,7 @@ pub const Ship: type = struct {
     control: ShipControl = .mouse,
     damage: ShipDamage = .none,
     shootCooldown: f32 = 0.0,
+    shieldCooldown: f32 = 0.0,
     weapon: Weapons.WeaponType = .bullet_single_front,
 
     fn update(self: *Ship, deltaTime: f32) void {
@@ -40,6 +42,10 @@ pub const Ship: type = struct {
 
         ship.velocity.x = 0.0;
         ship.velocity.y = 0.0;
+
+        if (self.shieldCooldown > 0.0) {
+            Shields.update(deltaTime);
+        }
     }
 
     fn draw(self: *Ship) void {
@@ -47,6 +53,10 @@ pub const Ship: type = struct {
         const y: i32 = @as(i32, @intFromFloat((self.position.y * @as(f32, @floatFromInt(rl.getScreenHeight()))) - Consts.SHIP_SIZE_HALF));
 
         rl.drawTexture(shipDamagedTextures[@intFromEnum(self.damage)], x, y, rl.Color.white);
+
+        if (self.shieldCooldown > 0.0) {
+            Shields.draw(self.position.x, self.position.y);
+        }
     }
 };
 
@@ -103,16 +113,22 @@ pub fn processInputs(deltaTime: f32) anyerror!void {
         try Weapons.shoot(ship);
     }
 
+    if (ship.shieldCooldown > 0.0) {
+        ship.shieldCooldown -= deltaTime;
+    }
+
     if (rl.isMouseButtonPressed(rl.MouseButton.right)) {
-        var weapon: u8 = @intFromEnum(ship.weapon);
+        var shield: u8 = @intFromEnum(Shields.getShield());
 
-        weapon += 1;
+        shield += 1;
 
-        if (weapon >= Weapons.weaponConfigs.len) {
-            weapon = 0;
+        if (shield >= Shields.shieldConfigs.len) {
+            shield = 0;
         }
 
-        ship.weapon = @enumFromInt(weapon);
+        Shields.setShield(@enumFromInt(shield));
+
+        ship.shieldCooldown = 10.0;
     }
 }
 

@@ -1,6 +1,7 @@
 const std: type = @import("std");
 const rl: type = @import("raylib");
 
+const Animator: type = @import("animator.zig");
 const Consts: type = @import("consts.zig");
 
 pub const BulletType: type = enum {
@@ -10,9 +11,34 @@ pub const BulletType: type = enum {
     zap,
 };
 
-const BulletConfig: type = struct {
-    frames: usize = 1,
-    animationVelocity: f32 = 0.05,
+var bullets: std.ArrayList(Bullet) = undefined;
+var bulletTextures: [4]rl.Texture2D = .{ undefined, undefined, undefined, undefined };
+
+pub const bulletConfigs: [4]Animator.AnimationConfig = .{
+    .{
+        .color = rl.Color.white,
+        .frames = 4,
+        .duration = 0.05,
+        .size = Consts.BULLET_SIZE,
+    },
+    .{
+        .color = rl.Color.white,
+        .frames = 3,
+        .duration = 0.05,
+        .size = Consts.BULLET_SIZE,
+    },
+    .{
+        .color = rl.Color.white,
+        .frames = 10,
+        .duration = 0.05,
+        .size = Consts.BULLET_SIZE,
+    },
+    .{
+        .color = rl.Color.white,
+        .frames = 8,
+        .duration = 0.05,
+        .size = Consts.BULLET_SIZE,
+    },
 };
 
 const Bullet: type = struct {
@@ -23,11 +49,10 @@ const Bullet: type = struct {
     color: rl.Color = rl.Color.white,
     friendly: bool = false,
     destroyed: bool = false,
-    animationFrame: usize = 0,
-    animationTimer: f32 = 0,
+    animationData: Animator.AnimationData = .{},
 
     pub fn init(x: f32, y: f32, vx: f32, vy: f32, bulletType: BulletType, angle: f32, color: rl.Color, friendly: bool) Bullet {
-        return Bullet{
+        var bullet: Bullet = .{
             .position = rl.Vector2.init(x, y),
             .velocity = rl.Vector2.init(vx, vy),
             .bulletType = bulletType,
@@ -35,8 +60,18 @@ const Bullet: type = struct {
             .color = color,
             .friendly = friendly,
             .destroyed = false,
-            .animationTimer = bulletConfigs[@intFromEnum(bulletType)].animationVelocity,
         };
+
+        Animator.init(
+            Bullet,
+            &bullet,
+            bulletTextures[@intFromEnum(bulletType)],
+            bulletConfigs[@intFromEnum(bulletType)],
+        );
+
+        Animator.start(Bullet, &bullet);
+
+        return bullet;
     }
 
     pub fn update(self: *Bullet, deltaTime: f32) void {
@@ -47,70 +82,15 @@ const Bullet: type = struct {
             self.destroyed = true;
         }
 
-        self.animationTimer -= deltaTime;
-
-        if (self.animationTimer <= 0.0) {
-            const bulletConfig: BulletConfig = bulletConfigs[@intFromEnum(self.bulletType)];
-
-            self.animationTimer += bulletConfig.animationVelocity;
-
-            self.animationFrame += 1;
-
-            if (self.animationFrame >= bulletConfig.frames) {
-                self.animationFrame = 0;
-            }
+        if (self.animationData.running) {
+            Animator.update(Bullet, self, deltaTime);
         }
     }
 
-    pub fn draw(self: Bullet) void {
-        const sourceRect: rl.Rectangle = .{
-            .x = @as(f32, @floatFromInt(self.animationFrame)) * Consts.BULLET_SIZE,
-            .y = 0.0,
-            .width = Consts.BULLET_SIZE,
-            .height = Consts.BULLET_SIZE,
-        };
-
-        rl.gl.rlPushMatrix();
-        rl.gl.rlTranslatef(
-            self.position.x * @as(f32, @floatFromInt(rl.getScreenWidth())),
-            self.position.y * @as(f32, @floatFromInt(rl.getScreenHeight())),
-            0.0,
-        );
-        rl.gl.rlRotatef(self.angle + 90.0, 0.0, 0.0, 1.0);
-        rl.drawTextureRec(
-            bulletTextures[@intFromEnum(self.bulletType)],
-            sourceRect,
-            rl.Vector2.init(
-                -Consts.BULLET_SIZE_HALF,
-                -Consts.BULLET_SIZE_HALF,
-            ),
-            self.color,
-        );
-        rl.gl.rlPopMatrix();
+    pub fn draw(self: *Bullet) void {
+        Animator.draw(Bullet, self, self.position.x, self.position.y, self.angle + 90.0);
     }
 };
-
-const bulletConfigs: [4]BulletConfig = .{
-    BulletConfig{
-        .frames = 4,
-        .animationVelocity = 0.05,
-    },
-    BulletConfig{
-        .frames = 3,
-        .animationVelocity = 0.05,
-    },
-    BulletConfig{
-        .frames = 10,
-        .animationVelocity = 0.05,
-    },
-    BulletConfig{
-        .frames = 8,
-        .animationVelocity = 0.05,
-    },
-};
-
-var bullets: std.ArrayList(Bullet) = undefined;
-var bulletTextures: [4]rl.Texture2D = undefined;
 
 pub fn init(allocator: std.mem.Allocator) anyerror!void {
     bullets = std.ArrayList(Bullet).init(allocator);
@@ -136,7 +116,16 @@ pub fn deinit() void {
 pub fn add(x: f32, y: f32, vx: f32, vy: f32, bulletType: BulletType, angle: f32, color: rl.Color, friendly: bool) anyerror!void {
     const angleRad: f32 = std.math.degreesToRadians(angle);
 
-    try bullets.append(Bullet.init(x, y, @cos(angleRad) * vx, @sin(angleRad) * vy, bulletType, angle, color, friendly));
+    try bullets.append(Bullet.init(
+        x,
+        y,
+        @cos(angleRad) * vx,
+        @sin(angleRad) * vy,
+        bulletType,
+        angle,
+        color,
+        friendly,
+    ));
 }
 
 pub fn update(deltaTime: f32) void {
@@ -158,7 +147,7 @@ pub fn update(deltaTime: f32) void {
 }
 
 pub fn draw() void {
-    for (bullets.items) |bullet| {
+    for (bullets.items) |*bullet| {
         bullet.draw();
     }
 }
